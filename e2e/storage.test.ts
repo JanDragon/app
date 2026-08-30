@@ -33,7 +33,7 @@ async function loadStorageModule(storage: AsyncStorageMock) {
     default: storage,
   }));
 
-  return import("./storage");
+  return import("./utils/storage");
 }
 
 describe("storage migration checks", () => {
