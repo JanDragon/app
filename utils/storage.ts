@@ -6,6 +6,7 @@ export enum StorageKeys {
   BASIC_AUTH = "basicAuth", // legacy
   SERVERS = "servers",
   ACTIVE_SERVER = "activeServer",
+  MIGRATION_CHECKED = "migrationChecked",
 }
 
 async function loadLegacyStorage(): Promise<Server> {
@@ -19,9 +20,19 @@ async function loadLegacyStorage(): Promise<Server> {
   return { url, basicAuth };
 }
 
+let migrationPromise: Promise<void> | undefined;
+
 async function migrate() {
+  const migrationChecked = await AsyncStorage.getItem(
+    StorageKeys.MIGRATION_CHECKED,
+  );
+  if (migrationChecked) return;
+
   const keys = await AsyncStorage.getAllKeys();
-  if (!keys.includes(StorageKeys.SERVER_URL)) return;
+  if (!keys.includes(StorageKeys.SERVER_URL)) {
+    await AsyncStorage.setItem(StorageKeys.MIGRATION_CHECKED, "true");
+    return;
+  }
   if (keys.includes(StorageKeys.SERVERS)) {
     // stale legacy leftovers next to an existing config: current config wins
     await AsyncStorage.removeMany([
@@ -31,6 +42,19 @@ async function migrate() {
   } else {
     await migrateStorage();
   }
+
+  await AsyncStorage.setItem(StorageKeys.MIGRATION_CHECKED, "true");
+}
+
+async function ensureMigrated() {
+  if (!migrationPromise) {
+    migrationPromise = migrate().catch((error) => {
+      migrationPromise = undefined;
+      throw error;
+    });
+  }
+
+  await migrationPromise;
 }
 
 async function migrateStorage() {
@@ -44,7 +68,7 @@ async function migrateStorage() {
 }
 
 export async function loadActiveServer(): Promise<Server | undefined> {
-  await migrate();
+  await ensureMigrated();
   const activeServerJson = await AsyncStorage.getItem(
     StorageKeys.ACTIVE_SERVER,
   );
@@ -52,7 +76,7 @@ export async function loadActiveServer(): Promise<Server | undefined> {
 }
 
 export async function loadServers(): Promise<Server[]> {
-  await migrate();
+  await ensureMigrated();
   const serversJson = await AsyncStorage.getItem(StorageKeys.SERVERS);
   return serversJson ? JSON.parse(serversJson) : [];
 }
@@ -72,22 +96,28 @@ async function storeServers(servers: Server[]) {
   await AsyncStorage.setItem(StorageKeys.SERVERS, JSON.stringify(servers));
 }
 
-export async function addServer(server: Server) {
+export async function addServer(server: Server): Promise<Server[]> {
   const servers = await loadServers();
   servers.push(server);
   await storeServers(servers);
+  return servers;
 }
 
-export async function updateServer(server: Server, index: number) {
+export async function updateServer(
+  server: Server,
+  index: number,
+): Promise<Server[]> {
   const servers = await loadServers();
   servers[index] = server;
   await storeServers(servers);
-  return index;
+  return servers;
 }
 
-export async function removeServer(index: number): Promise<Server> {
+export async function removeServer(
+  index: number,
+): Promise<{ removedServer: Server; remainingServers: Server[] }> {
   const servers = await loadServers();
-  const server = servers.splice(index, 1);
+  const removedServer = servers.splice(index, 1)[0];
   await storeServers(servers);
-  return server[0];
+  return { removedServer, remainingServers: servers };
 }
