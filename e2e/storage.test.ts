@@ -1,3 +1,5 @@
+import { afterEach, describe, expect as jestExpect, it, jest } from "@jest/globals";
+
 type AsyncStorageMock = {
   getAllKeys: jest.Mock<Promise<string[]>, []>;
   getItem: jest.Mock<Promise<string | null>, [string]>;
@@ -54,10 +56,13 @@ describe("storage migration checks", () => {
       storageModule.loadActiveServer(),
     ]);
 
-    expect(storage.getAllKeys).toHaveBeenCalledTimes(1);
-    expect(storage.setItem).toHaveBeenCalledWith("migrationChecked", "true");
-    expect(servers).toEqual([{ url: "https://demo.evcc.io" }]);
-    expect(activeServer).toEqual({ url: "https://demo.evcc.io" });
+    jestExpect(storage.getAllKeys).toHaveBeenCalledTimes(1);
+    jestExpect(storage.setItem).toHaveBeenCalledWith(
+      "migrationChecked",
+      "true",
+    );
+    jestExpect(servers).toEqual([{ url: "https://demo.evcc.io" }]);
+    jestExpect(activeServer).toEqual({ url: "https://demo.evcc.io" });
   });
 
   it("skips the legacy scan after persisting the migration check", async () => {
@@ -71,6 +76,6 @@ describe("storage migration checks", () => {
     await storageModule.loadServers();
     await storageModule.loadActiveServer();
 
-    expect(storage.getAllKeys).not.toHaveBeenCalled();
+    jestExpect(storage.getAllKeys).not.toHaveBeenCalled();
   });
 });
