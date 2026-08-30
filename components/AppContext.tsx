@@ -63,8 +63,11 @@ export const AppProvider = ({ children }: PropsWithChildren) => {
         });
       }
 
-      const loadedServers = await loadServers();
-      let active = await loadActiveServer();
+      const [loadedServers, storedActiveServer] = await Promise.all([
+        loadServers(),
+        loadActiveServer(),
+      ]);
+      let active = storedActiveServer;
       if (!active && loadedServers.length > 0) {
         active = loadedServers[0];
       }
@@ -119,24 +122,24 @@ export const AppProvider = ({ children }: PropsWithChildren) => {
     // ignore duplicates — double-taps and repeated deep links otherwise add
     // the same server twice
     const existing = await loadServers();
-    if (!existing.some((s) => sameServer(s, server))) {
-      await storageAddServer(server);
+    if (existing.some((s) => sameServer(s, server))) {
+      return;
     }
-    setServers(await loadServers());
+    setServers(await storageAddServer(server));
   };
 
   const updateServer = async (server: Server, index: number) => {
-    await storageUpdateServer(server, index);
-    setServers(await loadServers());
+    setServers(await storageUpdateServer(server, index));
   };
 
   const removeServer = async (index: number) => {
-    const removedServer = await storageRemoveServer(index);
-    const remaining = await loadServers();
-    setServers(remaining);
+    const { removedServer, remainingServers } = await storageRemoveServer(index);
+    setServers(remainingServers);
 
     if (sameServer(activeServer, removedServer)) {
-      await setActiveServer(remaining.length > 0 ? remaining[0] : undefined);
+      await setActiveServer(
+        remainingServers.length > 0 ? remainingServers[0] : undefined,
+      );
     }
   };
 
