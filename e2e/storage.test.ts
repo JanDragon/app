@@ -1,11 +1,11 @@
 import { afterEach, describe, expect as jestExpect, it, jest } from "@jest/globals";
 
 type AsyncStorageMock = {
-  getAllKeys: jest.Mock<Promise<string[]>, []>;
-  getItem: jest.Mock<Promise<string | null>, [string]>;
-  removeItem: jest.Mock<Promise<void>, [string]>;
-  removeMany: jest.Mock<Promise<void>, [string[]]>;
-  setItem: jest.Mock<Promise<void>, [string, string]>;
+  getAllKeys: jest.MockedFunction<() => Promise<string[]>>;
+  getItem: jest.MockedFunction<(key: string) => Promise<string | null>>;
+  removeItem: jest.MockedFunction<(key: string) => Promise<void>>;
+  removeMany: jest.MockedFunction<(keys: string[]) => Promise<void>>;
+  setItem: jest.MockedFunction<(key: string, value: string) => Promise<void>>;
 };
 
 function createAsyncStorageMock(
